@@ -1,0 +1,32 @@
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Morse Code Player</title>
+  <script src="elm.js"></script>
+</head>
+
+<body>
+  <div id="myapp"></div>
+  <script type="module">
+import MorseAudio from './src/morse-audio.js'
+
+const morsePlayer = new MorseAudio()
+
+const app = Elm.Main.init({
+    node: document.querySelector('#myapp')
+})
+
+// Set up port communication
+app.ports.playMorse.subscribe((text) => morsePlayer.playMorse(text));
+
+// Set up completion callback
+morsePlayer.setOnComplete(() => {
+    app.ports.morseComplete.send(null)
+});
+
+app.ports.startTone.subscribe(() => morsePlayer.startTone());
+app.ports.stopTone.subscribe(() => morsePlayer.stop());
+
+  </script>
+</body>
+</html>
