@@ -17,14 +17,6 @@ const app = Elm.Main.init({
     node: document.querySelector('#myapp')
 })
 
-// Set up port communication
-app.ports.playMorse.subscribe((text) => morsePlayer.playMorse(text));
-
-// Set up completion callback
-morsePlayer.setOnComplete(() => {
-    app.ports.morseComplete.send(null)
-});
-
 app.ports.startTone.subscribe(() => morsePlayer.startTone());
 app.ports.stopTone.subscribe(() => morsePlayer.stop());
 

@@ -1,5 +1,20 @@
 #key {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+}
+
+#timeline {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+}
+
+.segment {
+  border: 1px solid black;
+  height: 10px;
+}
+
+.segment:nth-child(odd) {
+  background-color: red;
 }

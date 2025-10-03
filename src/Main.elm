@@ -3,15 +3,12 @@ port module Main exposing (main)
 import Browser
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick, onMouseDown, onMouseUp)
-import Html.Attributes exposing (id)
+import Html.Attributes exposing (id, class, style)
 import Json.Encode
-import Time exposing (Posix)
+import Time exposing (Posix, posixToMillis)
 import Task
 
 -- PORTS
-port playMorse : String -> Cmd msg
-port morseComplete : (() -> msg) -> Sub msg
-
 port startTone : (() -> Cmd msg)
 port stopTone : (() -> Cmd msg)
 
@@ -23,38 +20,55 @@ type MorseEvent
 
 type alias TimedMorseEvent =
     { event : MorseEvent
-    , timeStamp: Time.Posix
+    , timestamp: Time.Posix
     }
 
 type alias Model =
-    { text : String
-    , events : List TimedMorseEvent
+    { events : List TimedMorseEvent
     , playingMorse : Bool
     , playingTone: Bool
     }
 
+
+minMax : List Int -> Maybe (Int, Int)
+minMax list =
+    let
+        max = List.maximum list
+        min = List.minimum list
+    in
+    case ( max, min ) of
+        ( Just a, Just b ) -> Just ( a, b )
+        _ -> Nothing
+
+
+rescaledTimeline : List TimedMorseEvent -> List Float
+rescaledTimeline events =
+    let
+        eventsInt = List.map (\e -> posixToMillis e.timestamp) events
+    in
+        case minMax eventsInt of
+            Nothing -> []
+            Just (min, max) ->
+                List.map (\ts -> ((toFloat (ts - min)) / (toFloat (max-min)))) eventsInt
+
+    
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( {
-      text = "init text"
-      , events = []
+      events = []
       , playingMorse = False
       , playingTone = False
     }, Cmd.none )
 
 -- UPDATE
 type Msg
-    = MorseComplete
-    | MorseKeyDown
+    = MorseKeyDown
     | MorseKeyUp
     | RecordEvent MorseEvent Time.Posix
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        MorseComplete ->
-            ( { model | playingMorse = False }, Cmd.none )
-
         MorseKeyDown ->
             ( { model | playingTone = True }
             , Cmd.batch
@@ -83,21 +97,28 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        [ div [] [ text model.text ]
-        , button [ id "key", onMouseDown MorseKeyDown, onMouseUp MorseKeyUp ]
-            [ text
-                (if model.playingTone then
-                    "Beep"
-                 else
-                    ""
-                )
-            ]
+        [ button [ id "key", onMouseDown MorseKeyDown, onMouseUp MorseKeyUp ]
+            [ text (if model.playingTone then "Beep" else "") ]
+        , viewMorseTimeline (rescaledTimeline model.events)
         ]
 
--- SUBSCRIPTIONS
-subscriptions : Model -> Sub Msg
-subscriptions _ =
-    morseComplete (\_ -> MorseComplete)
+viewEventSegment : Float -> Html Msg
+viewEventSegment x =
+    div
+        [ class "segment"
+        , style "width" (((x * 100) |> String.fromFloat) ++ "%")
+        ]
+        []
+
+viewMorseTimeline : List Float -> Html Msg
+viewMorseTimeline events =
+    let
+        tail = List.drop 1 events
+        divs = List.map2 (\prev curr -> viewEventSegment (curr - prev)) events tail
+    in
+    div [ id "timeline" ] (List.reverse divs)
+
+
 
 -- MAIN
 main : Program () Model Msg
@@ -106,5 +127,5 @@ main =
         { init = init
         , update = update
         , view = view
-        , subscriptions = subscriptions
+        , subscriptions = \_ -> Sub.none
         }
