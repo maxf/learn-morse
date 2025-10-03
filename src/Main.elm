@@ -3,6 +3,7 @@ port module Main exposing (main)
 import Browser
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick, onMouseDown, onMouseUp)
+import Html.Attributes exposing (id)
 import Json.Encode
 
 -- PORTS
@@ -138,12 +139,12 @@ view model =
                     "Play Morse"
                 )
             ]
-        , button [ onMouseDown StartTone, onMouseUp StopTone ]
+        , button [ id "key", onMouseDown StartTone, onMouseUp StopTone ]
             [ text
                 (if model.playingTone then
-                    "Waiting"
-                 else
                     "Beep"
+                 else
+                    ""
                 )
             ]
         ]
