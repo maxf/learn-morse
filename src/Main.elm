@@ -44,8 +44,7 @@ init _ =
 
 -- UPDATE
 type Msg
-    = PlayMorse
-    | MorseComplete
+    = MorseComplete
     | MorseKeyDown
     | MorseKeyUp
     | RecordEvent MorseEvent Time.Posix
@@ -53,11 +52,6 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        PlayMorse ->
-            ( { model | playingMorse = True }
-            , playMorse (stringToMorse model.text)
-            )
-            
         MorseComplete ->
             ( { model | playingMorse = False }, Cmd.none )
 
@@ -85,93 +79,11 @@ update msg model =
             ( { model |  events = newEvents }, Cmd.none )
 
 
-stringToMorse : String -> String
-stringToMorse s =
-    let
-        characters = String.split "" s
-    in
-    String.join " " (List.map characterToMorse characters)
-
--- Convert a single character to Morse code
-characterToMorse : String -> String
-characterToMorse char =
-    case String.toUpper char of
-        -- Numbers
-        "0" -> "-----"
-        "1" -> ".----"
-        "2" -> "..---"
-        "3" -> "...--"
-        "4" -> "....-"
-        "5" -> "....."
-        "6" -> "-...."
-        "7" -> "--..."
-        "8" -> "---.."
-        "9" -> "----."
-        
-        -- Letters (uppercase)
-        "A" -> ".-"
-        "B" -> "-..."
-        "C" -> "-.-."
-        "D" -> "-.."
-        "E" -> "."
-        "F" -> "..-."
-        "G" -> "--."
-        "H" -> "...."
-        "I" -> ".."
-        "J" -> ".---"
-        "K" -> "-.-"
-        "L" -> ".-.."
-        "M" -> "--"
-        "N" -> "-."
-        "O" -> "---"
-        "P" -> ".--."
-        "Q" -> "--.-"
-        "R" -> ".-."
-        "S" -> "..."
-        "T" -> "-"
-        "U" -> "..-"
-        "V" -> "...-"
-        "W" -> ".--"
-        "X" -> "-..-"
-        "Y" -> "-.--"
-        "Z" -> "--.."
-        
-        -- Punctuation
-        "." -> ".-.-.-"
-        "," -> "--..--"
-        "?" -> "..--.."
-        "'" -> ".----."
-        "!" -> "-.-.--"
-        "/" -> "-..-."
-        "(" -> "-.--."
-        ")" -> "-.--.-"
-        "&" -> ".-..."
-        ":" -> "---..."
-        ";" -> "-.-.-."
-        "=" -> "-...-"
-        "+" -> ".-.-."
-        "-" -> "-....-"
-        "_" -> "..--.-"
-        "\"" -> ".-..-."
-        "$" -> "...-..-"
-        "@" -> ".--.-."
-        
-        -- Default for unknown characters
-        _ -> ""
-
 -- VIEW
 view : Model -> Html Msg
 view model =
     div []
         [ div [] [ text model.text ]
-        , button [ onClick PlayMorse ]
-            [ text 
-                (if model.playingMorse then
-                    "Playing..." 
-                 else 
-                    "Play Morse"
-                )
-            ]
         , button [ id "key", onMouseDown MorseKeyDown, onMouseUp MorseKeyUp ]
             [ text
                 (if model.playingTone then
