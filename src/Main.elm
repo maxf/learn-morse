@@ -5,6 +5,8 @@ import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick, onMouseDown, onMouseUp)
 import Html.Attributes exposing (id)
 import Json.Encode
+import Time exposing (Posix)
+import Task
 
 -- PORTS
 port playMorse : String -> Cmd msg
@@ -14,8 +16,19 @@ port startTone : (() -> Cmd msg)
 port stopTone : (() -> Cmd msg)
 
 -- MODEL
+
+type MorseEvent
+    = KeyDown
+    | KeyUp
+
+type alias TimedMorseEvent =
+    { event : MorseEvent
+    , timeStamp: Time.Posix
+    }
+
 type alias Model =
     { text : String
+    , events : List TimedMorseEvent
     , playingMorse : Bool
     , playingTone: Bool
     }
@@ -24,6 +37,7 @@ init : () -> ( Model, Cmd Msg )
 init _ =
     ( {
       text = "init text"
+      , events = []
       , playingMorse = False
       , playingTone = False
     }, Cmd.none )
@@ -32,8 +46,9 @@ init _ =
 type Msg
     = PlayMorse
     | MorseComplete
-    | StartTone
-    | StopTone
+    | MorseKeyDown
+    | MorseKeyUp
+    | RecordEvent MorseEvent Time.Posix
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -46,11 +61,29 @@ update msg model =
         MorseComplete ->
             ( { model | playingMorse = False }, Cmd.none )
 
-        StartTone ->
-            ( { model | playingTone = True }, startTone () )
+        MorseKeyDown ->
+            ( { model | playingTone = True }
+            , Cmd.batch
+                [ Time.now |> Task.perform (RecordEvent KeyDown)
+                , startTone ()
+                ]
+            )
 
-        StopTone ->
-            ( { model | playingTone = False }, stopTone () )
+        MorseKeyUp ->
+            ( { model | playingTone = False }
+            , Cmd.batch
+                [ Time.now |> Task.perform (RecordEvent KeyUp)
+                , stopTone ()
+                ]
+            )
+
+        RecordEvent morseEvent timeStamp ->
+            let
+                newEvent = TimedMorseEvent morseEvent timeStamp
+                newEvents = List.append [newEvent] model.events
+            in
+            ( { model |  events = newEvents }, Cmd.none )
+
 
 stringToMorse : String -> String
 stringToMorse s =
@@ -139,7 +172,7 @@ view model =
                     "Play Morse"
                 )
             ]
-        , button [ id "key", onMouseDown StartTone, onMouseUp StopTone ]
+        , button [ id "key", onMouseDown MorseKeyDown, onMouseUp MorseKeyUp ]
             [ text
                 (if model.playingTone then
                     "Beep"
