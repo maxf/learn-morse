@@ -1,20 +1,29 @@
 #key {
-  width: 100px;
-  height: 100px;
+  width: 50vw;
+  height: 50vw;
   border-radius: 50%;
 }
 
 #timeline {
+  margin: 10px;
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
 }
 
+.page {
+  text-align: center;
+}
+
 .segment {
-  border: 1px solid black;
-  height: 10px;
+  height: 20px;
 }
 
 .segment:nth-child(odd) {
   background-color: red;
+}
+
+#reset {
+  height: 10vw;
+  width: 10vw;
 }

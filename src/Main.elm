@@ -65,6 +65,7 @@ type Msg
     = MorseKeyDown
     | MorseKeyUp
     | RecordEvent MorseEvent Time.Posix
+    | Reset
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -92,14 +93,18 @@ update msg model =
             in
             ( { model |  events = newEvents }, Cmd.none )
 
+        Reset ->
+            init ()
+
 
 -- VIEW
 view : Model -> Html Msg
 view model =
-    div []
+    div [ class "page" ]
         [ button [ id "key", onMouseDown MorseKeyDown, onMouseUp MorseKeyUp ]
             [ text (if model.playingTone then "Beep" else "") ]
         , viewMorseTimeline (rescaledTimeline model.events)
+        , button [ id "reset", onClick Reset ] [ text "Reset" ]
         ]
 
 viewEventSegment : Float -> Html Msg
