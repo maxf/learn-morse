@@ -14,6 +14,8 @@ port stopTone : (() -> Cmd msg)
 
 -- MODEL
 
+type alias Timings = List Float
+
 type MorseEvent
     = KeyDown
     | KeyUp
@@ -41,7 +43,7 @@ minMax list =
         _ -> Nothing
 
 
-rescaledTimeline : List TimedMorseEvent -> List Float
+rescaledTimeline : List TimedMorseEvent -> Timings
 rescaledTimeline events =
     let
         eventsInt = List.map (\e -> posixToMillis e.timestamp) events
@@ -50,6 +52,7 @@ rescaledTimeline events =
             Nothing -> []
             Just (min, max) ->
                 List.map (\ts -> ((toFloat (ts - min)) / (toFloat (max-min)))) eventsInt
+
 
     
 init : () -> ( Model, Cmd Msg )
@@ -115,7 +118,7 @@ viewEventSegment x =
         ]
         []
 
-viewMorseTimeline : List Float -> Html Msg
+viewMorseTimeline : Timings -> Html Msg
 viewMorseTimeline events =
     let
         tail = List.drop 1 events
