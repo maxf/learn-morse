@@ -16,7 +16,7 @@ provider "aws" {
 
 variable "my_domain_name" {
   type    = string
-  default = "morse.e010101.org"
+  default = "e010101.org"
 }
 
 locals {
