@@ -16,12 +16,12 @@ provider "aws" {
 
 variable "my_domain_name" {
   type    = string
-  default = "e010101.org"
+  default = "morse.e010101.org"
 }
 
 locals {
   zone_id             = "Z1025481AD87A25GUSN9"
-  acm_certificate_arn = "arn:aws:acm:us-east-1:597234005696:certificate/320bcdf3-dcfe-4686-9759-b0a76e150613"
+  acm_certificate_arn = "arn:aws:acm:us-east-1:597234005696:certificate/320bcdf3-dcfe-4686-9759-b0a76e150613"  # You'll need to update this with your new wildcard certificate ARN
   s3_content_version = md5(join("", [for f in fileset("dist", "**") : filemd5("dist/${f}")]))
   content_types = {
     html = "text/html"
