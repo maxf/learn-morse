@@ -2,6 +2,7 @@
 
 # Request a wildcard certificate for e010101.org
 aws acm request-certificate \
+  --region us-east-1 \
   --domain-name e010101.org \
   --subject-alternative-names "*.e010101.org" \
   --validation-method DNS
