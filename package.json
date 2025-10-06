@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Simple Elm counter app",
   "scripts": {
-    "dev": "elm-live src/Main.elm --start-page=index.html -- --output=elm.js"
+    "dev": "elm-live src/Main.elm --start-page=index.html -- --output=dist/elm.js"
   },
   "devDependencies": {
     "elm": "^0.19.1-5",
