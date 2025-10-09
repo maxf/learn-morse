@@ -1,12 +1,20 @@
 port module Main exposing (main)
 
 import Browser
+import Process
+import Dict exposing (Dict)
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick, onMouseDown, onMouseUp)
 import Html.Attributes exposing (id, class, style)
 import Json.Encode
 import Time exposing (Posix, posixToMillis)
 import Task
+
+dotDuration = 250
+
+dashDuration = dotDuration * 3
+
+pauseDuration = dotDuration
 
 -- PORTS
 port startTone : (() -> Cmd msg)
@@ -28,8 +36,9 @@ type alias TimedMorseEvent =
 type alias Model =
     { events : List TimedMorseEvent
     , playingMorse : Bool
-    , playingTone: Bool
-    , similarity : Float
+    , playingTone : Bool
+    , lastActivity : Maybe Time.Posix
+    , interpretedWord : Maybe String
     }
 
 
@@ -42,55 +51,6 @@ minMax list =
     case ( min, max ) of
         ( Just a, Just b ) -> Just ( a, b )
         _ -> Nothing
-
-red : Timings
-red = [ 0.0, 0.05
-      , 0.10, 0.25
-      , 0.30, 0.35
-      , 0.475, 0.525
-      , 0.65, 0.80
-      , 0.85, 0.90
-      , 0.95, 1.0
-      ]
-
-calculateMatchingTime : Timings -> Timings -> Float
-calculateMatchingTime timings1 timings2 =
-    let
-        -- Convert timings to intervals with state (True = key down, False = key up)
-        toIntervals : Timings -> List (Float, Float, Bool)
-        toIntervals timings =
-            case timings of
-                [] -> []
-                _ -> 
-                    List.map2 
-                        (\start end -> (start, end, modBy 2 (List.length (List.filter (\t -> t <= start) timings)) == 0))
-                        timings
-                        (List.drop 1 timings ++ [1.0])
-        
-        -- Get all intervals from both timings
-        intervals1 = toIntervals timings1
-        intervals2 = toIntervals timings2
-        
-        -- Find overlapping intervals with matching states
-        findOverlaps : List (Float, Float, Bool) -> List (Float, Float, Bool) -> Float
-        findOverlaps ints1 ints2 =
-            List.foldl 
-                (\(start1, end1, state1) acc ->
-                    acc + List.foldl 
-                        (\(start2, end2, state2) innerAcc ->
-                            if state1 == state2 then
-                                let
-                                    overlapStart = max start1 start2
-                                    overlapEnd = min end1 end2
-                                    overlap = max 0 (overlapEnd - overlapStart)
-                                in
-                                    innerAcc + overlap
-                            else
-                                innerAcc
-                        ) 0 ints2
-                ) 0 ints1
-    in
-        findOverlaps intervals1 intervals2
 
 
 rescaledTimeline : List TimedMorseEvent -> Timings
@@ -111,7 +71,8 @@ init _ =
       events = []
       , playingMorse = False
       , playingTone = False
-      , similarity = 0.0
+      , lastActivity = Nothing
+      , interpretedWord = Nothing
     }, Cmd.none )
 
 -- UPDATE
@@ -119,6 +80,7 @@ type Msg
     = MorseKeyDown
     | MorseKeyUp
     | RecordEvent MorseEvent Time.Posix
+    | TimeoutFired Time.Posix
     | Reset
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -127,31 +89,132 @@ update msg model =
         MorseKeyDown ->
             ( { model | playingTone = True }
             , Cmd.batch
-                [ Time.now |> Task.perform (RecordEvent KeyDown)
-                , startTone ()
+                [ startTone ()
+                , Task.perform (RecordEvent KeyDown) Time.now
                 ]
             )
 
         MorseKeyUp ->
             ( { model | playingTone = False }
             , Cmd.batch
-                [ Time.now |> Task.perform (RecordEvent KeyUp)
-                , stopTone ()
+                [ stopTone ()
+                , Task.perform (RecordEvent KeyUp) Time.now
                 ]
             )
 
-        RecordEvent morseEvent timeStamp ->
+        RecordEvent morseEvent timestamp ->
             let
-                newEvent = TimedMorseEvent morseEvent timeStamp
+                newEvent = TimedMorseEvent morseEvent timestamp
                 newEvents = List.append model.events [newEvent]
-                score = calculateMatchingTime (rescaledTimeline newEvents) red
+                command =
+                    case morseEvent of
+                        KeyDown ->
+                            Cmd.none
+                        KeyUp ->
+                            -- When the user releases the key, start counting
+                            Task.perform
+                                (\_ -> TimeoutFired timestamp)
+                                (Process.sleep 3000)       
             in
-            ( { model |  events = newEvents
-              , similarity = score}, Cmd.none )
+            ( { model |  events = newEvents, lastActivity = Just timestamp }
+            , command
+            )
 
+        TimeoutFired timestamp ->
+            -- Check if this timeout is the one we care about.
+            if model.lastActivity == Just timestamp then
+                -- It is! No key presses for a few seconds, so check the pattern
+                -- from model.events
+                -- init ()  -- for now, reset
+                ({ model | interpretedWord = interpretTimeline model.events, events = [], lastActivity = Nothing }
+                , Cmd.none
+                ) 
+
+            else
+                -- A newer key press occurred. Ignore this stale timeout.
+                ( model, Cmd.none )
+        
         Reset ->
             init ()
 
+timelineToDuration : List TimedMorseEvent -> List Int 
+timelineToDuration timeline =
+    List.map2 (\a b -> posixToMillis b.timestamp - posixToMillis a.timestamp) timeline (List.drop 1 timeline)
+
+        
+interpretTimeline : List TimedMorseEvent -> Maybe String
+interpretTimeline timeline =
+    let
+        durations : List Int
+        durations = timelineToDuration timeline
+        morse : String
+        morse = durationsToMorse durations
+    in
+        morseToMaybeText morse
+    
+
+durationsToMorse : List Int -> String
+durationsToMorse durations =
+    -- [123, 383, 430, 300, 602, 100] -> ".- -"
+    let
+        transform : Int -> Int -> String
+        transform index duration =
+            if remainderBy 2 index == 0 then -- this is a tone
+                if duration <= dotDuration then
+                    "."
+                else
+                    "-"
+            else -- this is a pause
+                if duration > pauseDuration then
+                    " "
+            else
+                ""
+    in
+    List.indexedMap transform durations |> String.concat
+
+
+morseToMaybeText : String -> Maybe String
+morseToMaybeText morseString =
+    let
+        -- 1. Split the string into codes. `String.words` correctly
+        -- handles any amount of whitespace between codes, satisfying
+        -- the "collapse whitespace" requirement.
+        morseCodes : List String
+        morseCodes =
+            String.words morseString
+
+        -- 2. Attempt to translate each code.
+        maybeLetters : List (Maybe String)
+        maybeLetters =
+            List.map (\code -> Dict.get code morseMap) morseCodes
+
+        -- 3. Convert the list of potential failures into a single
+        -- potential failure. This results in Nothing if any code
+        -- was invalid.
+        allOrNothing : Maybe (List String)
+        allOrNothing =
+            List.foldr (Maybe.map2 (::)) (Just []) maybeLetters
+    in
+    -- 4. If we have a successful list of letters, join them.
+    -- The result remains wrapped in a `Maybe`.
+    Maybe.map String.concat allOrNothing                   
+
+morseMap : Dict String String
+morseMap =
+    Dict.fromList
+        -- Letters (A-Z)
+        [ ( ".-", "A" ), ( "-...", "B" ), ( "-.-.", "C" ), ( "-..", "D" ), ( ".", "E" ), ( "..-.", "F" ), ( "--.", "G" ), ( "....", "H" ), ( "..", "I" ), ( ".---", "J" ), ( "-.-", "K" ), ( ".-..", "L" ), ( "--", "M" ), ( "-.", "N" ), ( "---", "O" ), ( ".--.", "P" ), ( "--.-", "Q" ), ( ".-.", "R" ), ( "...", "S" ), ( "-", "T" ), ( "..-", "U" ), ( "...-", "V" ), ( ".--", "W" ), ( "-..-", "X" ), ( "-.--", "Y" ), ( "--..", "Z" )
+
+        -- Digits (0-9)
+        , ( "-----", "0" ), ( ".----", "1" ), ( "..---", "2" ), ( "...--", "3" ), ( "....-", "4" ), ( ".....", "5" ), ( "-....", "6" ), ( "--...", "7" ), ( "---..", "8" ), ( "----.", "9" )
+
+        -- Punctuation
+        , ( ".-.-.-", "." ), ( "--..--", "," ), ( "..--..", "?" ), ( ".----.", "'" ), ( "-.-.--", "!" ), ( "-..-.", "/" ), ( "-.--.", "(" ), ( "-.--.-", ")" ), ( ".-...", "&" ), ( "---...", ":" ), ( "-.-.-.", ";" ), ( "-...-", "=" ), ( ".-.-.", "+" ), ( "-....-", "-" ), ( "..--.-", "_" ), ( ".-..-.", "\"" ), ( "...-..-", "$" ), ( ".--.-.", "@" )
+        ]
+        
+
+
+        
 -- VIEW
 view : Model -> Html Msg
 view model =
@@ -159,9 +222,7 @@ view model =
         [ button [ id "key", onMouseDown MorseKeyDown, onMouseUp MorseKeyUp ]
             [ text (if model.playingTone then "Beep" else "") ]
         , viewMorseTimeline (rescaledTimeline model.events)
-        , viewMorseTimeline red
-        , div [] [ model.similarity |> String.fromFloat |> text  ]
-        , button [ id "reset", onClick Reset ] [ text "Reset" ]
+        , div [] [ model.interpretedWord |> Maybe.withDefault "~" |> text ]
         ]
 
 viewEventSegment : Float -> Html Msg

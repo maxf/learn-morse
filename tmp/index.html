@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Decoding Morse Code With JavaScript</title>
+
+    <style type="text/css">
+
+        div.output {}
+
+        div.output p.message {
+            font-size: 20px ;
+            line-height: 30px ;
+            }
+
+        div.alphabet {
+            bottom: 0px ;
+            position: fixed ;
+            }
+
+        div.alphabet h3 {
+            margin: 0px 0px 20px 0px ;
+            }
+
+        div.alphabet ul.characters {
+            margin: 0px 0px 0px 0px ;
+            padding: 0px 0px 0px 0px ;
+            }
+
+        div.alphabet ul.characters li {
+            border: 1px solid #CCCCCC ;
+            display: inline-block ;
+            padding: 10px 0px 10px 0px ;
+            text-align: center ;
+            width: 75px ;
+            }
+
+        div.alphabet ul.characters li span.character {
+            display: block ;
+            font-size: 14px ;
+            line-height: 18px ;
+            margin: 0px 0px 7px 0px ;
+            }
+
+        div.alphabet ul.characters li span.sequence {
+            display: block ;
+            font-size: 18px ;
+            line-height: 18px ;
+            }
+
+    </style>
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.6.3/jquery.min.js"></script>
+    <script type="text/javascript" src="./morse-recogniser.js">
+</script>
+</head>
+<body>
+
+    <h1>
+        Decoding Morse Code With JavaScript
+    </h1>
+
+
+    <!-- BEGIN: Output. -->
+    <div class="output">
+
+        <h3>
+            Your Message (Press any key to interact):
+        </h3>
+
+        <p class="message">
+            <span class="characters">
+                <!-- This will be populated by the user. -->
+            </span>
+        </p>
+
+    </div>
+    <!-- END: Output. -->
+
+    <script type="text/javascript" src="interpreter.js"></script>
+</body>
+</html>
+
