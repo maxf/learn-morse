@@ -1,4 +1,8 @@
 /elm-stuff/
-/elm.js
+elm.js
 /node_modules/
 .aider*
+/.terraform.lock.hcl
+/.terraform/
+/terraform.tfstate
+/terraform.tfstate.backup

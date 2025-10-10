@@ -22,8 +22,3 @@
 .segment:nth-child(odd) {
   background-color: red;
 }
-
-#reset {
-  height: 10vw;
-  width: 10vw;
-}

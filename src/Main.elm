@@ -1,12 +1,15 @@
 port module Main exposing (main)
 
 import Browser
+import Process
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick, onMouseDown, onMouseUp)
 import Html.Attributes exposing (id, class, style)
 import Json.Encode
 import Time exposing (Posix, posixToMillis)
 import Task
+
+import MorseCode exposing (dotDuration, dashDuration, pauseDuration)
 
 -- PORTS
 port startTone : (() -> Cmd msg)
@@ -29,7 +32,7 @@ type alias Model =
     { events : List TimedMorseEvent
     , playingMorse : Bool
     , playingTone: Bool
-    , similarity : Float
+    , lastActivity: Maybe Time.Posix
     }
 
 
@@ -42,55 +45,6 @@ minMax list =
     case ( min, max ) of
         ( Just a, Just b ) -> Just ( a, b )
         _ -> Nothing
-
-red : Timings
-red = [ 0.0, 0.05
-      , 0.10, 0.25
-      , 0.30, 0.35
-      , 0.475, 0.525
-      , 0.65, 0.80
-      , 0.85, 0.90
-      , 0.95, 1.0
-      ]
-
-calculateMatchingTime : Timings -> Timings -> Float
-calculateMatchingTime timings1 timings2 =
-    let
-        -- Convert timings to intervals with state (True = key down, False = key up)
-        toIntervals : Timings -> List (Float, Float, Bool)
-        toIntervals timings =
-            case timings of
-                [] -> []
-                _ -> 
-                    List.map2 
-                        (\start end -> (start, end, modBy 2 (List.length (List.filter (\t -> t <= start) timings)) == 0))
-                        timings
-                        (List.drop 1 timings ++ [1.0])
-        
-        -- Get all intervals from both timings
-        intervals1 = toIntervals timings1
-        intervals2 = toIntervals timings2
-        
-        -- Find overlapping intervals with matching states
-        findOverlaps : List (Float, Float, Bool) -> List (Float, Float, Bool) -> Float
-        findOverlaps ints1 ints2 =
-            List.foldl 
-                (\(start1, end1, state1) acc ->
-                    acc + List.foldl 
-                        (\(start2, end2, state2) innerAcc ->
-                            if state1 == state2 then
-                                let
-                                    overlapStart = max start1 start2
-                                    overlapEnd = min end1 end2
-                                    overlap = max 0 (overlapEnd - overlapStart)
-                                in
-                                    innerAcc + overlap
-                            else
-                                innerAcc
-                        ) 0 ints2
-                ) 0 ints1
-    in
-        findOverlaps intervals1 intervals2
 
 
 rescaledTimeline : List TimedMorseEvent -> Timings
@@ -111,7 +65,7 @@ init _ =
       events = []
       , playingMorse = False
       , playingTone = False
-      , similarity = 0.0
+      , lastActivity = Nothing
     }, Cmd.none )
 
 -- UPDATE
@@ -119,6 +73,7 @@ type Msg
     = MorseKeyDown
     | MorseKeyUp
     | RecordEvent MorseEvent Time.Posix
+    | TimeoutFired Time.Posix
     | Reset
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -140,15 +95,36 @@ update msg model =
                 ]
             )
 
-        RecordEvent morseEvent timeStamp ->
+        RecordEvent morseEvent timestamp ->
             let
-                newEvent = TimedMorseEvent morseEvent timeStamp
+                newEvent = TimedMorseEvent morseEvent timestamp
                 newEvents = List.append model.events [newEvent]
-                score = calculateMatchingTime (rescaledTimeline newEvents) red
+                command =
+                    case morseEvent of
+                        KeyDown ->
+                            Cmd.none
+                        KeyUp ->
+                            -- When the user releases the key, start counting
+                            Process.sleep 3000 |>
+                                Task.perform (\_ -> TimeoutFired timestamp)       
             in
-            ( { model |  events = newEvents
-              , similarity = score}, Cmd.none )
+            ( { model |  events = newEvents, lastActivity = Just timestamp }
+            , command
+            )
 
+        TimeoutFired timestamp ->
+            -- Check if this timeout is the one we care about.
+            if model.lastActivity == Just timestamp then
+                -- It is! No key presses for a few seconds, so check the pattern
+                -- from model.events
+                init ()  -- for now, reset
+
+            else
+                -- A newer key press occurred. Ignore this stale timeout.
+                ( model, Cmd.none )
+
+                
+            
         Reset ->
             init ()
 
@@ -159,9 +135,6 @@ view model =
         [ button [ id "key", onMouseDown MorseKeyDown, onMouseUp MorseKeyUp ]
             [ text (if model.playingTone then "Beep" else "") ]
         , viewMorseTimeline (rescaledTimeline model.events)
-        , viewMorseTimeline red
-        , div [] [ model.similarity |> String.fromFloat |> text  ]
-        , button [ id "reset", onClick Reset ] [ text "Reset" ]
         ]
 
 viewEventSegment : Float -> Html Msg
