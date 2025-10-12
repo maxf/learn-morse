@@ -131,9 +131,17 @@ class MorseAudio {
 
   stop() {
     if (this.oscillator) {
-      this.oscillator.stop();
-      this.oscillator.disconnect();
-      this.oscillator = null;
+      // Smooth release to avoid clicks
+      const now = this.audioContext.currentTime;
+      this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, now);
+      this.gainNode.gain.linearRampToValueAtTime(0, now + 0.05); // Longer, smoother release
+      
+      // Schedule actual stop after the fade-out
+      setTimeout(() => {
+        this.oscillator.stop();
+        this.oscillator.disconnect();
+        this.oscillator = null;
+      }, 60); // Wait for fade-out to complete
     }
     this.queue = [];
     this.isPlaying = false;
@@ -147,23 +155,21 @@ class MorseAudio {
   startTone() {
     this.init();
 
-    return new Promise((resolve) => {
-      // Create and configure oscillator
-      this.oscillator = this.audioContext.createOscillator();
-      this.oscillator.type = 'sine';
-      this.oscillator.frequency.value = this.frequency;
-      this.oscillator.connect(this.gainNode);
+    // Create and configure oscillator
+    this.oscillator = this.audioContext.createOscillator();
+    this.oscillator.type = 'sine';
+    this.oscillator.frequency.value = this.frequency;
+    this.oscillator.connect(this.gainNode);
 
-      // Get current time from audio context for precise scheduling
-      const now = this.audioContext.currentTime;
+    // Get current time from audio context for precise scheduling
+    const now = this.audioContext.currentTime;
 
-      // Smooth transitions to avoid clicks - use more gradual ramping
-      this.gainNode.gain.setValueAtTime(0, now);
-      this.gainNode.gain.linearRampToValueAtTime(0.5, now + 0.015); // Longer attack
+    // Smoother attack to avoid clicks
+    this.gainNode.gain.setValueAtTime(0, now);
+    this.gainNode.gain.linearRampToValueAtTime(0.5, now + 0.05); // Longer, smoother attack
 
-      // Start the tone
-      this.oscillator.start(now);
-    });
+    // Start the tone
+    this.oscillator.start(now);
   }
 
   
