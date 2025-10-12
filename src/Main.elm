@@ -6,6 +6,7 @@ import Dict exposing (Dict)
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick, onMouseDown, onMouseUp)
 import Html.Attributes exposing (id, class, style)
+import Json.Decode
 import Json.Encode
 import Time exposing (Posix, posixToMillis)
 import Task
@@ -219,8 +220,14 @@ morseMap =
 view : Model -> Html Msg
 view model =
     div [ class "page" ]
-        [ button [ id "key", onMouseDown MorseKeyDown, onMouseUp MorseKeyUp ]
-            [ text (if model.playingTone then "Beep" else "") ]
+        [ button 
+            [ id "key"
+            , onMouseDown MorseKeyDown
+            , onMouseUp MorseKeyUp
+            , Html.Events.preventDefaultOn "touchstart" (Json.Decode.succeed (MorseKeyDown, True))
+            , Html.Events.preventDefaultOn "touchend" (Json.Decode.succeed (MorseKeyUp, True))
+            ]
+            [ text "" ]
         , viewMorseTimeline (rescaledTimeline model.events)
         , div [] [ model.interpretedWord |> Maybe.withDefault "~" |> text ]
         ]
