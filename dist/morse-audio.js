@@ -108,7 +108,7 @@ class MorseAudio {
       
       // Smooth transitions to avoid clicks - use more gradual ramping
       this.gainNode.gain.setValueAtTime(0, now);
-      this.gainNode.gain.linearRampToValueAtTime(0.5, now + 0.015); // Longer attack
+      this.gainNode.gain.linearRampToValueAtTime(0.5, now + 0.03); // Even longer attack
       
       // Start the tone
       this.oscillator.start(now);
@@ -117,31 +117,60 @@ class MorseAudio {
       setTimeout(() => {
         const releaseTime = this.audioContext.currentTime;
         this.gainNode.gain.setValueAtTime(0.5, releaseTime);
-        this.gainNode.gain.linearRampToValueAtTime(0, releaseTime + 0.015); // Longer release
+        
+        // Use exponential ramp for more natural sound decay
+        this.gainNode.gain.exponentialRampToValueAtTime(0.001, releaseTime + 0.08);
+        this.gainNode.gain.setValueAtTime(0, releaseTime + 0.08);
         
         setTimeout(() => {
-          this.oscillator.stop();
-          this.oscillator.disconnect();
-          this.oscillator = null;
+          if (this.oscillator) {
+            try {
+              this.oscillator.stop();
+              this.oscillator.disconnect();
+            } catch (e) {
+              console.log("Oscillator already stopped");
+            }
+            this.oscillator = null;
+          }
           resolve();
-        }, 20); // Slightly longer wait before disconnecting
-      }, duration - 30); // Start fade-out a bit earlier
+        }, 100); // Much longer wait before disconnecting
+      }, duration - 120); // Start fade-out earlier
     });
   }
 
   stop() {
     if (this.oscillator) {
-      // Smooth release to avoid clicks
-      const now = this.audioContext.currentTime;
-      this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, now);
-      this.gainNode.gain.linearRampToValueAtTime(0, now + 0.05); // Longer, smoother release
+      // Get current gain value
+      const currentGain = this.gainNode.gain.value;
       
-      // Schedule actual stop after the fade-out
+      // Smooth release to avoid clicks - use exponential ramp for more natural decay
+      const now = this.audioContext.currentTime;
+      
+      // Set the current value explicitly first
+      this.gainNode.gain.setValueAtTime(currentGain, now);
+      
+      // Use a longer fade-out time for smoother release
+      // Using exponentialRampToValueAtTime for more natural sound decay
+      // We can't ramp to 0 with exponential, so use a very small value
+      this.gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+      
+      // Then set to 0 after the exponential ramp
+      this.gainNode.gain.setValueAtTime(0, now + 0.1);
+      
+      // Schedule actual stop after the fade-out with a longer delay
       setTimeout(() => {
-        this.oscillator.stop();
-        this.oscillator.disconnect();
-        this.oscillator = null;
-      }, 60); // Wait for fade-out to complete
+        if (this.oscillator) {
+          try {
+            this.oscillator.stop();
+            this.oscillator.disconnect();
+          } catch (e) {
+            // Handle any errors that might occur if the oscillator
+            // was already stopped or disconnected
+            console.log("Oscillator already stopped");
+          }
+          this.oscillator = null;
+        }
+      }, 120); // Wait longer for fade-out to complete
     }
     this.queue = [];
     this.isPlaying = false;
@@ -166,7 +195,7 @@ class MorseAudio {
 
     // Smoother attack to avoid clicks
     this.gainNode.gain.setValueAtTime(0, now);
-    this.gainNode.gain.linearRampToValueAtTime(0.5, now + 0.05); // Longer, smoother attack
+    this.gainNode.gain.linearRampToValueAtTime(0.5, now + 0.08); // Even longer, smoother attack
 
     // Start the tone
     this.oscillator.start(now);
