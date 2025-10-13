@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.5"
     }
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.4"
+    }
   }
 
   required_version = ">= 1.2.0"
@@ -23,6 +27,7 @@ locals {
   zone_id             = "Z1025481AD87A25GUSN9"
   acm_certificate_arn = "arn:aws:acm:us-east-1:597234005696:certificate/9ff288f8-c181-45f6-bf6b-acf503c86cb4"
   s3_content_version = md5(join("", [for f in fileset("dist", "**") : filemd5("dist/${f}")]))
+  deployment_timestamp = formatdate("YYYY-MM-DD HH:mm:ss", timestamp())
   content_types = {
     html = "text/html"
     htm  = "text/html"
@@ -98,14 +103,23 @@ resource "aws_s3_bucket_policy" "my_public_read_policy" {
   })
 }
 
+# Create a modified index.html with deployment timestamp
+resource "local_file" "index_with_timestamp" {
+  content = templatefile("${path.module}/dist/index.html.template", {
+    deployment_timestamp = local.deployment_timestamp
+  })
+  filename = "${path.module}/dist/index.html"
+}
+
 ##### will upload all the files present under HTML folder to the S3 bucket #####
 resource "aws_s3_object" "my_upload_object" {
-  for_each     = fileset("dist", "**")
+  for_each     = fileset("dist", "**/*")
   bucket       = aws_s3_bucket.my_bucket.id
   key          = each.value
   source       = "dist/${each.value}"
   etag         = filemd5("dist/${each.value}")
   content_type = lookup(local.content_types, lower(split(".", each.value)[length(split(".", each.value)) - 1]), "application/octet-stream")
+  depends_on   = [local_file.index_with_timestamp]
 }
 
 #######################
