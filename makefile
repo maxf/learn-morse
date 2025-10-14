@@ -7,13 +7,11 @@
 dist/elm.js: src/Main.elm
 	npx elm make src/Main.elm --output=dist/elm.js
 
-prepare-template:
-	cp dist/index.html dist/index.html.template || true
-
 init-terraform:
 	terraform init -upgrade
 
-deploy: dist/elm.js prepare-template
+deploy: dist/elm.js
+	sed -i "s/<timestamp: [^>]*>/<timestamp: $$(date -u +"%Y-%m-%d %H:%M:%S UTC")>/g" dist/index.html                                                                                                                                                                                                
 	terraform apply
 
 # end

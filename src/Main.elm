@@ -36,10 +36,10 @@ type alias TimedMorseEvent =
 
 type alias Model =
     { events : List TimedMorseEvent
-    , playingMorse : Bool
     , playingTone : Bool
     , lastActivity : Maybe Time.Posix
     , interpretedWord : Maybe String
+    , introModalSeen : Bool 
     }
 
 
@@ -70,10 +70,10 @@ init : () -> ( Model, Cmd Msg )
 init _ =
     ( {
       events = []
-      , playingMorse = False
       , playingTone = False
       , lastActivity = Nothing
       , interpretedWord = Nothing
+      , introModalSeen = False
     }, Cmd.none )
 
 -- UPDATE
@@ -83,10 +83,14 @@ type Msg
     | RecordEvent MorseEvent Time.Posix
     | TimeoutFired Time.Posix
     | Reset
+    | UserClosedIntroModal
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        UserClosedIntroModal ->
+            ( { model | introModalSeen = True }, Cmd.none)
+                
         MorseKeyDown ->
             ( { model | playingTone = True }
             , Cmd.batch
@@ -220,8 +224,10 @@ morseMap =
 view : Model -> Html Msg
 view model =
     div [ class "page" ]
+        (if model.introModalSeen then
         [ button 
             [ id "key"
+            , class (if model.playingTone then "keydown" else "")
             , onMouseDown MorseKeyDown
             , onMouseUp MorseKeyUp
             , Html.Events.preventDefaultOn "touchstart" (Json.Decode.succeed (MorseKeyDown, True))
@@ -230,7 +236,8 @@ view model =
             [ text "" ]
         , viewMorseTimeline (rescaledTimeline model.events)
         , div [] [ model.interpretedWord |> Maybe.withDefault "~" |> text ]
-        ]
+        ] else
+        [ button [ id "start-button", onClick UserClosedIntroModal ] [ text "Start "] ])
 
 viewEventSegment : Float -> Html Msg
 viewEventSegment x =

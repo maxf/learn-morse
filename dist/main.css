@@ -34,7 +34,7 @@ html {
 }
 
 
-#key.keydown, #key.pressed {
+#key.keydown {
   background-color: #c0392b;
   box-shadow: 3px 5px #666;
   transform: translateX(3px) translateY(4px);
