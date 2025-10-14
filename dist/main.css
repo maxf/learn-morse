@@ -1,3 +1,18 @@
+html {
+  font-family: sans;
+}
+
+#start-button {
+  font-size: 50px;
+  width: 40vw;
+  height: 40vw;
+  background-color: lightblue;
+  color: black;
+  outline: none;
+  border: none;
+  cursor: pointer;
+}
+
 #key {
   width: 40vw;
   height: 40vw;
@@ -19,7 +34,7 @@
 }
 
 
-#key:active {
+#key.keydown {
   background-color: #c0392b;
   box-shadow: 3px 5px #666;
   transform: translateX(3px) translateY(4px);

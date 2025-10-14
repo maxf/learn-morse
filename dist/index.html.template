@@ -22,6 +22,6 @@ app.ports.startTone.subscribe(() => morsePlayer.startTone());
 app.ports.stopTone.subscribe(() => morsePlayer.stop());
   </script>
   
-  <div class="deployment-info">Last deployed: ${deployment_timestamp}</div>
+  <div class="deployment-info">Last deployed: 2025-10-13 08:16:28</div>
 </body>
 </html>
