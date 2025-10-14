@@ -183,7 +183,18 @@ class MorseAudio {
 
   startTone() {
     this.init();
-
+    
+    // Resume the audio context if it's suspended (needed for first interaction)
+    if (this.audioContext.state === 'suspended') {
+      this.audioContext.resume().then(() => {
+        this.createAndStartOscillator();
+      });
+    } else {
+      this.createAndStartOscillator();
+    }
+  }
+  
+  createAndStartOscillator() {
     // Create and configure oscillator
     this.oscillator = this.audioContext.createOscillator();
     this.oscillator.type = 'sine';
